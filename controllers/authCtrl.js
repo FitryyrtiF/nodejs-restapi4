@@ -2,6 +2,8 @@ import { User } from "../models/usersModel.js";
 import bcrypt from "bcryptjs";
 import _ from "lodash";
 import { Op } from "sequelize";
+import "dotenv/config";
+import jwt from "jsonwebtoken";
 
 // -----------------------register-------------------------
 export const register = async (req, res) => {
@@ -58,7 +60,7 @@ export const login = async (req, res) => {
     //Sequelize - DB find email from DB based on reqBody.email
     const selectDb = await User.findOne({ where: { email: reqBody.email } });
     const dataFromDb = selectDb.dataValues;
-    //Create obj only for username, email and password
+    //Create obj only for username & email
     const userDb = {
       email: dataFromDb.email,
       username: dataFromDb.username,
@@ -70,12 +72,19 @@ export const login = async (req, res) => {
       dataFromDb.password
     );
 
+    //token distribution
+    const tokenKey = jwt.sign({ email: userDb.email }, process.env.TOKEN_KEY);
+
     //Compare email, username, password reqBody with userDb
     if (_.isEqual(reqBody, userDb) && isPasswordTrue) {
       //Status sent if OK
       return res.status(200).json({
         message: "Login successful",
-        regUser: { email: reqBody.email, username: reqBody.username },
+        regUser: {
+          email: reqBody.email,
+          username: reqBody.username,
+          token: tokenKey,
+        },
       });
     } else {
       //Status sent if FAILED
@@ -83,5 +92,23 @@ export const login = async (req, res) => {
     }
   } catch (error) {
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// -----------------------public-------------------------
+export const publicAccess = (req, res) => {
+  return res.status(200).json({ message: "Public Access" });
+};
+
+// -----------------------protected-------------------------
+export const protectedAccess = (req, res) => {
+  try {
+    //Status sent if OK
+    return res.status(200).json({
+      message: "Protected Access",
+      userProtectedAccess: { email: req.email },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server Error" });
   }
 };
